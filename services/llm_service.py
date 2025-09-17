@@ -1,56 +1,59 @@
 import os, sys, requests
-from typing import List, Dict, Any
-
-try:
+try:  # load .env automatically (Option A)
     from dotenv import load_dotenv  # type: ignore
     load_dotenv()
 except Exception:
     pass
+from typing import List, Dict
 
-MODEL = "llama-3.3-70b-versatile"  # Adjust here to change base model
-ENDPOINT = "https://api.groq.com/openai/v1/chat/completions"
+"""Minimal OpenAI Chat client used by the Streamlit UI.
 
-def get_api_key() -> str:
-    key = os.getenv("GROQ_API_KEY")
+Only required environment variable: OPENAI_API_KEY
+Edit MODEL below to change the default model.
+"""
+
+# -------- Configuration (edit here) --------
+MODEL = "gpt-4o-mini"
+ENDPOINT = "https://api.openai.com/v1/chat/completions"
+TIMEOUT = 60
+# -------------------------------------------
+
+def _api_key() -> str:
+    key = os.getenv("OPENAI_API_KEY")
     if not key:
-        raise RuntimeError("Missing GROQ_API_KEY environment variable.")
+        raise RuntimeError("Set OPENAI_API_KEY in your .env file")
     return key
 
-def call_groq_chat(model: str, messages: List[Dict[str, str]], timeout: int = 60) -> str:
+def _post(messages: List[Dict[str, str]], model: str) -> str:
     r = requests.post(
         ENDPOINT,
         headers={
-            "Authorization": f"Bearer {get_api_key()}",
+            "Authorization": f"Bearer {_api_key()}",
             "Content-Type": "application/json",
         },
-        json={
-            "model": model,
-            "messages": messages,
-        },
-        timeout=timeout,
+        json={"model": model, "messages": messages},
+        timeout=TIMEOUT,
     )
     if r.status_code != 200:
-        raise RuntimeError(f"Groq error {r.status_code}: {r.text[:200]}")
-    data: Dict[str, Any] = r.json()
+        raise RuntimeError(f"OpenAI {r.status_code}: {r.text[:200]}")
+    data = r.json()
     return data["choices"][0]["message"]["content"].strip()
 
 def chat_once(prompt: str, model: str = MODEL) -> str:
-    p = prompt.strip()
-    if not p:
-        raise ValueError("Prompt is empty.")
-    return call_groq_chat(model, [{"role": "user", "content": p}])
+    prompt = prompt.strip()
+    if not prompt:
+        raise ValueError("Prompt is empty")
+    return _post([{"role": "user", "content": prompt}], model)
 
-# Backward compatible original function name
-def generate_response(prompt: str) -> str:  # pragma: no cover - thin wrapper
+def generate_response(prompt: str) -> str:  # backward compatibility
     return chat_once(prompt)
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python services/llm_service.py 'your prompt'", file=sys.stderr)
         sys.exit(2)
-    prompt_arg = " ".join(sys.argv[1:])
     try:
-        print(chat_once(prompt_arg))
+        print(chat_once(" ".join(sys.argv[1:])))
     except Exception as e:
         print(f"[ERROR] {e}", file=sys.stderr)
         sys.exit(1)
