@@ -1,4 +1,5 @@
 import os, sys, requests
+from typing import List, Dict, Any
 
 try:
     from dotenv import load_dotenv  # type: ignore
@@ -6,32 +7,50 @@ try:
 except Exception:
     pass
 
-# Single model constant (adjust here when you want to switch models)
-MODEL = "llama-3.3-70b-versatile"
+MODEL = "llama-3.3-70b-versatile"  # Adjust here to change base model
 ENDPOINT = "https://api.groq.com/openai/v1/chat/completions"
 
-def generate_response(prompt: str) -> str:
-    api_key = os.getenv("GROQ_API_KEY")
-    # Bare bones: assume key is present; if not, this will 401 and raise below
+def get_api_key() -> str:
+    key = os.getenv("GROQ_API_KEY")
+    if not key:
+        raise RuntimeError("Missing GROQ_API_KEY environment variable.")
+    return key
+
+def call_groq_chat(model: str, messages: List[Dict[str, str]], timeout: int = 60) -> str:
     r = requests.post(
         ENDPOINT,
         headers={
-            "Authorization": f"Bearer {api_key}",
+            "Authorization": f"Bearer {get_api_key()}",
             "Content-Type": "application/json",
         },
         json={
-            "model": MODEL,
-            "messages": [{"role": "user", "content": prompt}],
+            "model": model,
+            "messages": messages,
         },
-        timeout=60,
+        timeout=timeout,
     )
     if r.status_code != 200:
         raise RuntimeError(f"Groq error {r.status_code}: {r.text[:200]}")
-    data = r.json()
+    data: Dict[str, Any] = r.json()
     return data["choices"][0]["message"]["content"].strip()
+
+def chat_once(prompt: str, model: str = MODEL) -> str:
+    p = prompt.strip()
+    if not p:
+        raise ValueError("Prompt is empty.")
+    return call_groq_chat(model, [{"role": "user", "content": p}])
+
+# Backward compatible original function name
+def generate_response(prompt: str) -> str:  # pragma: no cover - thin wrapper
+    return chat_once(prompt)
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python services/llm_service.py 'your prompt'", file=sys.stderr)
         sys.exit(2)
-    print(generate_response(sys.argv[1]))
+    prompt_arg = " ".join(sys.argv[1:])
+    try:
+        print(chat_once(prompt_arg))
+    except Exception as e:
+        print(f"[ERROR] {e}", file=sys.stderr)
+        sys.exit(1)
