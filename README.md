@@ -14,10 +14,10 @@ AI Interviewer Online is a hardware‑agnostic Streamlit application for intervi
 ```
 ai-interviewer-online
 ├── app.py
-├── pages
-│   ├── 1_LLM.py
-│   ├── 2_STT.py
-│   └── 3_TTS.py
+├── tabs
+│   ├── llm_tab.py
+│   ├── stt_tab.py
+│   └── tts_tab.py
 ├── services
 │   ├── llm_service.py
 │   ├── stt_service.py
@@ -30,16 +30,15 @@ ai-interviewer-online
 ```
 
 ## Service Layer (Non-UI Python Modules)
-All files under `src/services` are strict Python modules without any Streamlit dependency. They can be imported or executed directly for testing (e.g. `python src/services/llm_service.py`). Streamlit pages simply call these modules' functions to:
+All files under `services` are strict Python modules without any Streamlit dependency. They can be imported or executed directly for testing (e.g. `python services/llm_service.py`). Streamlit tabs simply call these modules' functions to:
 1. Send user input (text / audio file path / text for synthesis).
 2. Receive structured outputs (model response text / transcription result / audio file path or bytes).
 
 Example usage (interactive shell):
 ```bash
 python
->>> from src.services.llm_service import generate_response
->>> generate_response("Hello, can you summarize the purpose of this app?")
-'This app lets you...'
+>>> from services.llm_service import generate_response  # placeholder
+>>> # generate_response("Hello, can you summarize the purpose of this app?")
 ```
 
 ## Quick Start (Automated)
