@@ -18,14 +18,14 @@ ai-interviewer-online
 │   ├── 1_LLM.py
 │   ├── 2_STT.py
 │   └── 3_TTS.py
-├── src
-│   └── services
-│       ├── llm_service.py        # Remote LLM API client (no Streamlit imports)
-│       ├── stt_service.py        # STT API client placeholder
-│       └── tts.service.py        # TTS API client placeholder
+├── services
+│   ├── llm_service.py
+│   ├── stt_service.py
+│   └── tts_service.py
 ├── requirements.txt
 ├── run.sh
 ├── run.bat
+├── .gitignore
 └── README.md
 ```
 
