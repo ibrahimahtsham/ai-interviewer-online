@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # AI Interviewer Online run script (Linux/macOS)
-# Provides two options:
-#   1) Normal run  - reuse venv, install/update deps
-#   2) Clean run   - remove caches first, then proceed
+# Step 1: choose normal or clean run (sets up venv + installs deps)
+# Step 2: choose what to run (Streamlit app or single LLM prompt)
 
 set -euo pipefail
 
@@ -11,22 +10,31 @@ PYTHON_BIN="${PYTHON:-python3}"
 
 usage() {
   cat <<EOF
-Run options:
-  1) Normal run (default)
-  2) Clean run  (remove caches before starting)
-You can pass the choice as first arg, e.g.:
-  ./run.sh 2
-Environment vars:
-  PYTHON=python3.12   Override python executable
+Usage: ./run.sh [1|2]
+  1  Normal run (reuse venv)
+  2  Clean run (wipe caches + recreate venv)
+After setup you'll pick:
+  1  Streamlit app
+  2  LLM service (single prompt)
+Env override: PYTHON=python3.12 ./run.sh
 EOF
 }
 
-prompt_choice() {
-  echo "Select option:" >&2
-  echo "  1) Run normally" >&2
+prompt_choice_setup() {
+  echo "Setup:" >&2
+  echo "  1) Normal run" >&2
   echo "  2) Clean run" >&2
-  read -rp "Enter choice (1/2): " choice
-  echo "${choice:-1}"
+  read -rp "Choose (1/2): " choice
+  SETUP_CHOICE="${choice:-1}"
+}
+
+prompt_choice_run() {
+  echo
+  echo "Run Target:" >&2
+  echo "  1) Streamlit app" >&2
+  echo "  2) LLM service (single prompt)" >&2
+  read -rp "Choose (1/2): " choice
+  TARGET_CHOICE="${choice:-1}"
 }
 
 ensure_python() {
@@ -82,37 +90,60 @@ try:
     import streamlit, os
     print(f"[OK] streamlit {streamlit.__version__} ({os.path.dirname(streamlit.__file__)})")
 except Exception as e:
-    print("[ERROR] streamlit import failed:", e)
-    sys.exit(1)
+    print("[WARN] streamlit import failed (app launch may fail):", e)
 PY
 }
 
-launch() {
+launch_streamlit() {
   if [[ ! -f "$APP_FILE" ]]; then
     echo "[ERROR] $APP_FILE not found." >&2
-    exit 1
+    return 1
   fi
-  echo "[INFO] Launching app..."
+  echo "[INFO] Launching Streamlit app..."
   exec python -m streamlit run "$APP_FILE"
 }
 
-main() {
-  local choice
-  choice="${1:-}" 
-  if [[ -z "$choice" ]]; then
-    usage
-    choice="$(prompt_choice)"
+llm_single() {
+  if [[ ! -f services/llm_service.py ]]; then
+    echo "[ERROR] services/llm_service.py not found." >&2
+    return 1
   fi
+  read -rp "Prompt: " p
+  [[ -z "$p" ]] && echo "[INFO] Empty prompt, abort." && return 0
+  python services/llm_service.py "$p" || echo "[ERROR] LLM call failed"
+}
+
+execute_target() {
+  case "$TARGET_CHOICE" in
+    1) launch_streamlit ;;
+    2) llm_single ;;
+    *) echo "[ERROR] Invalid run target '$TARGET_CHOICE'"; exit 2 ;;
+  esac
+}
+
+main() {
+  local arg_choice
+  arg_choice="${1:-}" 
+  case "$arg_choice" in
+    -h|--help) usage; exit 0 ;;
+    1|2) SETUP_CHOICE="$arg_choice" ;;
+    "") prompt_choice_setup ;;
+    *) echo "[ERROR] Invalid first argument (use 1 or 2)"; exit 2 ;;
+  esac
+
+  prompt_choice_run
+
   ensure_python
-  case "$choice" in
+  case "$SETUP_CHOICE" in
     1) echo "[MODE] Normal run" ;;
     2) echo "[MODE] Clean run"; clean_caches ;;
-    *) echo "[ERROR] Invalid option '$choice' (use 1 or 2)" >&2; exit 2 ;;
+    *) echo "[ERROR] Invalid setup choice '$SETUP_CHOICE'"; exit 2 ;;
   esac
+
   activate_venv
   install_deps
   verify_streamlit
-  launch
+  execute_target
 }
 
 main "$@"
