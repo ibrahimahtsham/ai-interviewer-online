@@ -29,6 +29,7 @@ htmlcov/
 # OS / Misc
 .DS_Store
 Thumbs.db
+test.mp3
 
 # Jupyter
 .ipynb_checkpoints/
@@ -36,4 +37,5 @@ Thumbs.db
 # Environment variables / secrets
 .env
 .env.*
+!.env.example
 *.sqlite3

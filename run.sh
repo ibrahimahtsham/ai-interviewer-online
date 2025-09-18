@@ -16,6 +16,7 @@ Usage: ./run.sh [1|2]
 After setup you'll pick:
   1  Streamlit app
   2  LLM service (single prompt)
+  3  STT service (transcribe test.mp3)
 Env override: PYTHON=python3.12 ./run.sh
 EOF
 }
@@ -33,6 +34,7 @@ prompt_choice_run() {
   echo "Run Target:" >&2
   echo "  1) Streamlit app" >&2
   echo "  2) LLM service (single prompt)" >&2
+  echo "  3) STT service (test.mp3)" >&2
   read -rp "Choose (1/2): " choice
   TARGET_CHOICE="${choice:-1}"
 }
@@ -113,10 +115,25 @@ llm_single() {
   python services/llm_service.py "$p" || echo "[ERROR] LLM call failed"
 }
 
+stt_single() {
+  if [[ ! -f services/stt_service.py ]]; then
+    echo "[ERROR] services/stt_service.py not found." >&2
+    return 1
+  fi
+  local file="test.mp3"
+  if [[ ! -f "$file" ]]; then
+    echo "[ERROR] $file not found in project root." >&2
+    return 1
+  fi
+  echo "[INFO] Transcribing $file ..."
+  python services/stt_service.py "$file" || echo "[ERROR] STT call failed"
+}
+
 execute_target() {
   case "$TARGET_CHOICE" in
     1) launch_streamlit ;;
     2) llm_single ;;
+    3) stt_single ;;
     *) echo "[ERROR] Invalid run target '$TARGET_CHOICE'"; exit 2 ;;
   esac
 }
