@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # AI Interviewer Online run script (Linux/macOS)
 # Step 1: choose normal or clean run (sets up venv + installs deps)
-# Step 2: choose what to run (Streamlit app or single LLM prompt)
+# Step 2: choose what to run (Streamlit app, LLM, STT, TTS)
 
 set -euo pipefail
 
@@ -17,6 +17,7 @@ After setup you'll pick:
   1  Streamlit app
   2  LLM service (single prompt)
   3  STT service (transcribe test.mp3)
+  4  TTS service (say hello)
 Env override: PYTHON=python3.12 ./run.sh
 EOF
 }
@@ -35,7 +36,8 @@ prompt_choice_run() {
   echo "  1) Streamlit app" >&2
   echo "  2) LLM service (single prompt)" >&2
   echo "  3) STT service (test.mp3)" >&2
-  read -rp "Choose (1/2): " choice
+  echo "  4) TTS service (say hello)" >&2
+  read -rp "Choose (1-4): " choice
   TARGET_CHOICE="${choice:-1}"
 }
 
@@ -129,11 +131,43 @@ stt_single() {
   python services/stt_service.py "$file" || echo "[ERROR] STT call failed"
 }
 
+tts_single() {
+  if [[ ! -f services/tts_service.py ]]; then
+    echo "[ERROR] services/tts_service.py not found." >&2
+    return 1
+  fi
+  local out="tts_test.mp3"
+  echo "[INFO] Generating TTS: 'hi, i am a robot. its nice to meet you.'"
+  python - <<PY
+from services import tts_service
+try:
+    audio_bytes = tts_service.synthesize_speech("hi, i am a robot. its nice to meet you.")
+    with open("$out", "wb") as f:
+        f.write(audio_bytes)
+    print("[OK] Saved TTS to $out")
+except Exception as e:
+    import sys
+    print(f"[ERROR] {e}", file=sys.stderr)
+    sys.exit(1)
+PY
+
+  if command -v afplay >/dev/null 2>&1; then
+    echo "[INFO] Playing with afplay..."
+    afplay "$out"
+  elif command -v mpg123 >/dev/null 2>&1; then
+    echo "[INFO] Playing with mpg123..."
+    mpg123 "$out"
+  else
+    echo "[WARN] No audio player found. File saved at $out"
+  fi
+}
+
 execute_target() {
   case "$TARGET_CHOICE" in
     1) launch_streamlit ;;
     2) llm_single ;;
     3) stt_single ;;
+    4) tts_single ;;
     *) echo "[ERROR] Invalid run target '$TARGET_CHOICE'"; exit 2 ;;
   esac
 }

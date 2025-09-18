@@ -2,7 +2,7 @@ import streamlit as st
 from services.llm_service import chat_once
 
 def render():
-	st.header("Language Model (LLM)")
+	st.header("🧠 Language Model (LLM)")
 	st.write("Enter a prompt and get a single response from the remote model.")
 
 	if "llm_history" not in st.session_state:
