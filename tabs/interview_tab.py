@@ -1,5 +1,7 @@
 import streamlit as st
-from services import llm_service, tts_service
+import tempfile, time, wave
+from services import llm_service, tts_service, stt_service
+from streamlit_mic_recorder import mic_recorder
 
 
 def render():
@@ -11,6 +13,9 @@ def render():
     if "interview_role" not in st.session_state:
         st.session_state.interview_role = None
 
+    if "draft_reply" not in st.session_state:
+        st.session_state.draft_reply = ""  # holds text from mic or typed
+
     # Clean history (only valid entries)
     st.session_state.interview_history = [
         h for h in st.session_state.interview_history if "role" in h and "content" in h
@@ -21,6 +26,7 @@ def render():
         if st.button("🔄 Restart Interview"):
             st.session_state.interview_history = []
             st.session_state.interview_role = None
+            st.session_state.draft_reply = ""
             st.rerun()
 
     # --- Ask for interview role first ---
@@ -103,13 +109,47 @@ def render():
 
     st.markdown("<div style='clear: both'></div>", unsafe_allow_html=True)
 
-    # --- Input box ---
+    # --- Mic Recorder ---
+    st.subheader("🎤 Record your reply (optional)")
+    audio = mic_recorder(
+        start_prompt="🎙️ Start Recording",
+        stop_prompt="⏹ Stop Recording",
+        use_container_width=True,
+        key="mic_recorder",
+    )
+
+    if audio and audio.get("bytes"):
+        # 🎧 Playback recorded audio
+        st.audio(audio["bytes"], format="audio/wav")
+
+        if st.button("Transcribe Recording"):
+            try:
+                # Save audio directly (already valid WAV from mic_recorder)
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
+                    tmp.write(audio["bytes"])
+                    path = tmp.name
+
+                # Transcribe
+                text = stt_service.transcribe_audio(path)
+
+                # Pre-fill draft reply
+                st.session_state.draft_reply = text
+                st.success("✅ Transcribed from mic")
+                st.markdown(f"**Result:** {text}")
+
+            except Exception as e:
+                st.error(f"⚠️ STT Error: {e}")
+
+    # --- Input box with draft ---
     with st.form("chat_input", clear_on_submit=True):
-        user_msg = st.text_input("Your answer:")
+        user_msg = st.text_input("Your answer:", value=st.session_state.draft_reply)
         submitted = st.form_submit_button("Send")
 
     if submitted and user_msg.strip():
-        # Add your answer as user
+        # Clear draft after sending
+        st.session_state.draft_reply = ""
+
+        # Add user message
         st.session_state.interview_history.append({"role": "user", "content": user_msg})
 
         # Build conversation (exclude audio, keep only role/content)
