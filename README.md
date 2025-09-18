@@ -1,5 +1,7 @@
 # AI Interviewer Online
 
+https://github.com/user-attachments/assets/f54e4638-09b8-4d39-8930-5ba188218340
+
 ## Purpose
 AI Interviewer Online is a hardware‑agnostic Streamlit application for interview‑style interaction with a remote Language Model (LLM) plus future Speech‑to‑Text (STT) and Text‑to‑Speech (TTS) features. It is intentionally designed to run on low‑spec machines by delegating all heavy AI workloads to online/cloud services.
 
