@@ -6,16 +6,10 @@ except Exception:
     pass
 from typing import List, Dict
 
-"""Minimal OpenAI Chat client used by the Streamlit UI.
-
-Only required environment variable: OPENAI_API_KEY
-Edit MODEL below to change the default model.
-"""
-
 # -------- Configuration (edit here) --------
-MODEL = "gpt-4o-mini"
+MODEL = "gpt-4o-mini" # other models: gpt-4o, gpt-4o-2024, gpt-4o-mini, gpt-3.5-turbo
 ENDPOINT = "https://api.openai.com/v1/chat/completions"
-TIMEOUT = 60
+TIMEOUT = 60 # seconds
 # -------------------------------------------
 
 def _api_key() -> str:

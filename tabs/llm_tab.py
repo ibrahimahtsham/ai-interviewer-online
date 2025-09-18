@@ -9,7 +9,7 @@ def render():
 		st.session_state.llm_history = []  # list of dicts: {prompt, response}
 
 	with st.form("llm_form"):
-		prompt = st.text_area("Prompt", placeholder="e.g. Say 'apple' 3 times", height=140)
+		prompt = st.text_area("Prompt", placeholder="e.g. Say ready", height=140)
 		submitted = st.form_submit_button("Send")
 
 	if submitted:
@@ -26,5 +26,5 @@ def render():
 		st.subheader("History")
 		for item in reversed(st.session_state.llm_history):
 			st.markdown(f"**You:** {item['prompt']}")
-			st.markdown(f"**Model:** {item['response']}")
+			st.markdown(f"**LLM:** {item['response']}")
 			st.markdown("---")
