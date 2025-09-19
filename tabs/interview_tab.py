@@ -2,6 +2,7 @@ import streamlit as st
 import tempfile
 from services import llm_service, tts_service, stt_service
 from streamlit_mic_recorder import mic_recorder
+from utilities import interview_utility
 
 
 def render():
@@ -58,6 +59,15 @@ def render():
 
                 st.session_state.interview_history.append(
                     {"role": "assistant", "content": llm_reply, "audio": audio_bytes}
+                )
+                # Save initial transcript and AI audio
+                interview_utility.save_transcript(st.session_state.candidate_name, st.session_state.interview_history)
+                interview_utility.save_audio(
+                    st.session_state.candidate_name,
+                    1,
+                    "assistant",
+                    audio_bytes,
+                    ext="mp3"
                 )
                 st.rerun()
         return
@@ -137,4 +147,32 @@ def render():
         st.session_state.interview_history.append(
             {"role": "assistant", "content": llm_reply, "audio": audio_bytes}
         )
+
+        # Save transcript and audio files after each exchange
+        username = st.session_state.candidate_name
+        # Save transcript
+        interview_utility.save_transcript(username, st.session_state.interview_history)
+        # Save user audio if present
+        user_entries = [e for e in st.session_state.interview_history if e["role"] == "user"]
+        ai_entries = [e for e in st.session_state.interview_history if e["role"] == "assistant"]
+        user_idx = len(user_entries)
+        ai_idx = len(ai_entries)
+        last_user = user_entries[-1] if user_entries else None
+        last_ai = ai_entries[-1] if ai_entries else None
+        if last_user and last_user.get("audio"):
+            interview_utility.save_audio(
+                username,
+                user_idx,
+                "user",
+                last_user["audio"],
+                ext="wav"
+            )
+        if last_ai and last_ai.get("audio"):
+            interview_utility.save_audio(
+                username,
+                ai_idx,
+                "assistant",
+                last_ai["audio"],
+                ext="mp3"
+            )
         st.rerun()
