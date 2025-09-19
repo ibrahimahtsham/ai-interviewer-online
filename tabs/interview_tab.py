@@ -13,49 +13,57 @@ def render():
         st.session_state.interview_history = []
     if "interview_role" not in st.session_state:
         st.session_state.interview_role = None
+    if "candidate_name" not in st.session_state:
+        st.session_state.candidate_name = None
     if "draft_reply" not in st.session_state:
         st.session_state.draft_reply = ""
     if "last_audio" not in st.session_state:
         st.session_state.last_audio = None  # stores raw bytes from mic
 
     # --- Restart option ---
-    if st.session_state.interview_role:
+    if st.session_state.interview_role and st.session_state.candidate_name:
         if st.button("🔄 Restart Interview"):
             st.session_state.clear()
             st.rerun()
 
-    # --- Role selection ---
-    if not st.session_state.interview_role:
-        st.subheader("🎯 Choose Interview Role")
-        role_input = st.text_input("Enter job role (e.g., Software Engineer, Data Scientist)")
-        if st.button("Start Interview") and role_input.strip():
-            st.session_state.interview_role = role_input.strip()
+    # --- Name and Role selection ---
+    if not st.session_state.candidate_name or not st.session_state.interview_role:
+        st.subheader("👤 Enter Your Details to Begin")
+        name_input = st.text_input("Your Name")
+        role_input = st.text_input("Job Role (e.g., Software Engineer, Data Scientist)")
+        if st.button("Start Interview"):
+            if not name_input.strip() or not role_input.strip():
+                st.warning("Please enter both your name and the job role.")
+            else:
+                st.session_state.candidate_name = name_input.strip()
+                st.session_state.interview_role = role_input.strip()
 
-            # Add system instruction
-            st.session_state.interview_history.append({
-                "role": "system",
-                "content": (
-                    f"You are a professional interviewer for the role of {role_input}. "
-                    "Ask only one single, relevant interview question for this role. "
-                    "Do not answer on behalf of the candidate."
+                # Add system instruction
+                st.session_state.interview_history.append({
+                    "role": "system",
+                    "content": (
+                        f"You are a professional interviewer for the role of {role_input}. "
+                        f"The candidate's name is {name_input}. "
+                        "Ask only one single, relevant interview question for this role. "
+                        "Do not answer on behalf of the candidate."
+                    )
+                })
+
+                try:
+                    llm_reply = llm_service.chat(st.session_state.interview_history)
+                    audio_bytes = tts_service.synthesize_speech(llm_reply)
+                except Exception as e:
+                    st.error(f"⚠️ Error: {e}")
+                    return
+
+                st.session_state.interview_history.append(
+                    {"role": "assistant", "content": llm_reply, "audio": audio_bytes}
                 )
-            })
-
-            try:
-                llm_reply = llm_service.chat(st.session_state.interview_history)
-                audio_bytes = tts_service.synthesize_speech(llm_reply)
-            except Exception as e:
-                st.error(f"⚠️ Error: {e}")
-                return
-
-            st.session_state.interview_history.append(
-                {"role": "assistant", "content": llm_reply, "audio": audio_bytes}
-            )
-            st.rerun()
+                st.rerun()
         return
 
     # --- Conversation UI ---
-    st.subheader(f"Interview for: {st.session_state.interview_role}")
+    st.subheader(f"Interview for: {st.session_state.interview_role} (Candidate: {st.session_state.candidate_name})")
 
     for entry in st.session_state.interview_history:
         if entry["role"] == "user":
